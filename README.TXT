@@ -1,3 +1,7 @@
+v1.0.3.0 - 2014/10/24
+Forked to implement WebM.Encryption in mux and source filters.
+
+------------------------------------------------------
 WebM Project DirectShow Filters
 v1.0.2.0 - 2013/10/25
 http://www.webmproject.org/
