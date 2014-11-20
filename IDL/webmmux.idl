@@ -23,6 +23,13 @@ enum WebmMuxMode
     kWebmMuxModeLive = 1
 };
 
+enum WebmEncryptionMode
+{
+	kWebmEncryptionModeDefault = 0,
+	kWebmEncryptionModeVideoOnly = 1,
+	kWebmEncryptionModeAll = 2,
+};
+
 [
     object,
     uuid(ED311106-5211-11DF-94AF-0026B977EEAA),
@@ -33,8 +40,28 @@ interface IWebmMux : IUnknown
     HRESULT SetWritingApp([in, string] const wchar_t*);
     HRESULT GetWritingApp([out, string] wchar_t**);
 
-    HRESULT SetMuxMode([in] enum WebmMuxMode);
-    HRESULT GetMuxMode([out] enum WebmMuxMode*);
+    HRESULT SetMuxMode([in] enum WebmMuxMode mode);
+    HRESULT GetMuxMode([out] enum WebmMuxMode* pMode);
+}
+
+[
+	object,
+	uuid(2F4A0A57-EBBA-4CE8-A345-8E0609F9CDF5),
+	helpstring("WebM Encryption Muxer Interface")
+]
+interface IWebmEncryption : IUnknown
+{
+	HRESULT SetEncryptionMode([in] enum WebmEncryptionMode mode);
+	HRESULT GetEncryptionMode([out] enum WebmEncryptionMode* pMode);
+
+	HRESULT SetEncryptionContentId([in] const BYTE* buffer, LONG length);
+	HRESULT GetEncryptionContentId([out] BYTE** pBuffer, LONG* pLength);
+
+	HRESULT SetEncryptionSecret([in] const BYTE* buffer, LONG length);
+	HRESULT GetEncryptionSecret([out] BYTE** pBuffer, LONG* pLength);
+
+	HRESULT SetEncryptionIV([in] LONGLONG iv);
+	HRESULT GetEncryptionIV([out] LONGLONG* pIv);
 }
 
 [
@@ -44,6 +71,7 @@ interface IWebmMux : IUnknown
 coclass WebmMux
 {
    [default] interface IWebmMux;
+   interface IWebmEncryption;
 }
 
 }  //end library WebmMuxerLib

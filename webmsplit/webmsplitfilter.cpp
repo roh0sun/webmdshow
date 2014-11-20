@@ -91,7 +91,10 @@ Filter::Filter(IClassFactory* pClassFactory, IUnknown* pOuter)
       m_seekBase_ns(-1),
       m_currTime(kNoSeek),
       m_inpin(this),
-      m_cStarvation(-1)  //means "not starving"
+      m_cStarvation(-1),  //means "not starving"
+	  m_encAudio(false),
+	  m_encVideo(false),
+	  m_encIV(0)
 {
     m_pClassFactory->LockServer(TRUE);
 
@@ -241,7 +244,11 @@ HRESULT Filter::CNondelegating::QueryInterface(
     {
         pUnk = static_cast<IBaseFilter*>(m_pFilter);
     }
-    else
+	else if (iid == __uuidof(IWebmEncryption))
+	{
+		pUnk = static_cast<IWebmEncryption*>(m_pFilter);
+	}
+	else
     {
 #if 0
         wodbgstream os;
@@ -733,6 +740,191 @@ HRESULT Filter::QueryVendorInfo(LPWSTR* pstr)
 
     str = 0;
     return E_NOTIMPL;
+}
+
+
+HRESULT Filter::SetEncryptionMode(WebmEncryptionMode /*mode*/)
+{
+	return E_NOTIMPL;
+}
+
+
+HRESULT Filter::GetEncryptionMode(WebmEncryptionMode *pMode)
+{
+	if (pMode == 0)
+		return E_POINTER;
+
+	Lock lock;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (m_encAudio && m_encVideo)
+		*pMode = kWebmEncryptionModeAll;
+	else if (m_encVideo)
+		*pMode = kWebmEncryptionModeVideoOnly;
+	else
+		*pMode = kWebmEncryptionModeDefault;
+
+	return S_OK;
+}
+
+
+HRESULT Filter::SetEncryptionContentId(const BYTE *buffer, LONG length)
+{
+	Lock lock;
+
+	if (buffer == 0)
+		return E_POINTER;
+	if (length < 1)
+		return S_FALSE;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (m_state != State_Stopped)
+		return VFW_E_NOT_STOPPED;
+
+	std::string cid;
+	std::copy(buffer, buffer + length, std::back_inserter(cid));
+	m_encCid = cid;
+
+	return S_OK;
+}
+
+
+HRESULT Filter::GetEncryptionContentId(BYTE **pBuffer, LONG *pLength)
+{
+	Lock lock;
+
+	if (pBuffer == 0 || pLength == 0)
+		return E_POINTER;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	const std::string& cid = m_encCid;
+	if (cid.empty())
+	{
+		*pLength = 0;
+		*pBuffer = static_cast<BYTE *>(::CoTaskMemAlloc(0));
+	}
+	else
+	{
+		*pLength = cid.length();
+		*pBuffer = static_cast<BYTE *>(::CoTaskMemAlloc(cid.length()));
+		if (*pBuffer)
+		{
+			memcpy(*pBuffer, cid.data(), cid.length());
+		}
+	}
+
+	if (*pBuffer)
+		return E_OUTOFMEMORY;
+	else
+		return S_OK;
+}
+
+
+HRESULT Filter::SetEncryptionSecret(const BYTE *buffer, LONG length)
+{
+	Lock lock;
+
+	if (buffer == 0)
+		return E_POINTER;
+	if (length < 1)
+		return S_FALSE;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (m_state != State_Stopped)
+		return VFW_E_NOT_STOPPED;
+
+	std::string secret;
+	std::copy(buffer, buffer + length, std::back_inserter(secret));
+	m_encSecret = secret;
+
+	return S_OK;
+}
+
+
+HRESULT Filter::GetEncryptionSecret(BYTE **pBuffer, LONG *pLength)
+{
+	Lock lock;
+
+	if (pBuffer == 0 || pLength == 0)
+		return E_POINTER;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	const std::string& secret = m_encSecret;
+	if (secret.empty())
+	{
+		*pLength = 0;
+		*pBuffer = static_cast<BYTE *>(::CoTaskMemAlloc(0));
+	}
+	else
+	{
+		*pLength = secret.length();
+		*pBuffer = static_cast<BYTE *>(::CoTaskMemAlloc(secret.length()));
+		if (*pBuffer)
+		{
+			memcpy(*pBuffer, secret.data(), secret.length());
+		}
+	}
+
+	if (*pBuffer)
+		return E_OUTOFMEMORY;
+	else
+		return S_OK;
+}
+
+
+HRESULT Filter::SetEncryptionIV(LONGLONG iv)
+{
+	Lock lock;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (m_state != State_Stopped)
+		return VFW_E_NOT_STOPPED;
+
+	m_encIV = iv;
+
+	return S_OK;
+}
+
+
+HRESULT Filter::GetEncryptionIV(LONGLONG *pIv)
+{
+	if (pIv == 0)
+		return E_POINTER;
+
+	Lock lock;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	*pIv = m_encIV;
+
+	return S_OK;
 }
 
 

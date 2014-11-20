@@ -23,6 +23,7 @@ class Filter : public IBaseFilter,
                public IMediaSeeking,
                public IAMFilterMiscFlags,
                public IWebmMux,
+			   public IWebmEncryption,
                public CLockable
 {
     friend HRESULT CreateInstance(
@@ -106,6 +107,17 @@ public:
 
     HRESULT STDMETHODCALLTYPE SetMuxMode(WebmMuxMode);
     HRESULT STDMETHODCALLTYPE GetMuxMode(WebmMuxMode*);
+
+	//IWebmMuxEncryption
+
+	HRESULT STDMETHODCALLTYPE SetEncryptionMode(WebmEncryptionMode mode);
+	HRESULT STDMETHODCALLTYPE GetEncryptionMode(WebmEncryptionMode *pMode);
+	HRESULT STDMETHODCALLTYPE SetEncryptionContentId(const BYTE *buffer, LONG length);
+	HRESULT STDMETHODCALLTYPE GetEncryptionContentId(BYTE **pBuffer, LONG *pLength);
+	HRESULT STDMETHODCALLTYPE SetEncryptionSecret(const BYTE *buffer, LONG length);
+	HRESULT STDMETHODCALLTYPE GetEncryptionSecret(BYTE **pBuffer, LONG *pLength);
+	HRESULT STDMETHODCALLTYPE SetEncryptionIV(LONGLONG iv);
+	HRESULT STDMETHODCALLTYPE GetEncryptionIV(LONGLONG *pIv);
 
 private:
 

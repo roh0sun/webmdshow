@@ -13,6 +13,8 @@
 #include "webmsplitinpin.hpp"
 #include "clockable.hpp"
 
+#include "webmmuxidl.h"
+
 namespace mkvparser
 {
 class IMkvReader;
@@ -26,6 +28,7 @@ namespace WebmSplit
 class Outpin;
 
 class Filter : public IBaseFilter,
+			   public IWebmEncryption,
                public CLockable
 {
     friend HRESULT CreateInstance(
@@ -63,7 +66,18 @@ public:
     HRESULT STDMETHODCALLTYPE JoinFilterGraph(IFilterGraph*, LPCWSTR);
     HRESULT STDMETHODCALLTYPE QueryVendorInfo(LPWSTR*);
 
-    //local classes and methods
+	//IWebmMuxEncryption
+
+	HRESULT STDMETHODCALLTYPE SetEncryptionMode(WebmEncryptionMode mode);
+	HRESULT STDMETHODCALLTYPE GetEncryptionMode(WebmEncryptionMode *pMode);
+	HRESULT STDMETHODCALLTYPE SetEncryptionContentId(const BYTE *buffer, LONG length);
+	HRESULT STDMETHODCALLTYPE GetEncryptionContentId(BYTE **pBuffer, LONG *pLength);
+	HRESULT STDMETHODCALLTYPE SetEncryptionSecret(const BYTE *buffer, LONG length);
+	HRESULT STDMETHODCALLTYPE GetEncryptionSecret(BYTE **pBuffer, LONG *pLength);
+	HRESULT STDMETHODCALLTYPE SetEncryptionIV(LONGLONG iv);
+	HRESULT STDMETHODCALLTYPE GetEncryptionIV(LONGLONG *pIv);
+	
+	//local classes and methods
 
 private:
 
@@ -92,6 +106,13 @@ private:
     REFERENCE_TIME m_start;
     IReferenceClock* m_clock;
     FILTER_INFO m_info;
+
+	// WebM Encryption
+	bool m_encAudio;
+	bool m_encVideo;
+	std::string m_encCid;
+	std::string m_encSecret;
+	LONGLONG m_encIV;
 
 public:
     static const LONGLONG kNoSeek;

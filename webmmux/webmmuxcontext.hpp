@@ -54,6 +54,17 @@ public:
     bool GetLiveMuxMode() const;
     void SetLiveMuxMode(bool is_live);
 
+	void SetEncryptionAudio(bool enable);
+	bool GetEncryptionAudio() const;
+	void SetEncryptionVideo(bool enable);
+	bool GetEncryptionVideo() const;
+	void SetEncryptionContentId(const std::string& cid);
+	const std::string& GetEncryptionContentId() const;
+	void SetEncryptionSecret(const std::string& secret);
+	const std::string& GetEncryptionSecret() const;
+	void SetEncryptionIV(LONGLONG iv);
+	LONGLONG GetEncryptionIV() const;
+
     void BufferData();
     void FlushBufferedData();
 
@@ -142,7 +153,14 @@ private:
 
     bool m_bLiveMux;
 
-    struct BufferedElementSizeInfo
+	// WebM Encryption
+	bool m_encAudio;
+	bool m_encVideo;
+	std::string m_encCid;
+	std::string m_encSecret;
+	LONGLONG m_encIV;
+
+	struct BufferedElementSizeInfo
     {
         unsigned __int64 offset; // offset to size value in |m_buf|
         int byte_count;          // num bytes for storage of size value

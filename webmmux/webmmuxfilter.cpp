@@ -145,11 +145,15 @@ HRESULT Filter::nondelegating_t::QueryInterface(
     {
         pUnk = static_cast<IAMFilterMiscFlags*>(m_pFilter);
     }
-    else if (iid == __uuidof(IWebmMux))
+	else if (iid == __uuidof(IWebmMux))
     {
         pUnk = static_cast<IWebmMux*>(m_pFilter);
     }
-    else
+	else if (iid == __uuidof(IWebmEncryption))
+	{
+		pUnk = static_cast<IWebmEncryption*>(m_pFilter);
+	}
+	else
     {
 #if 0
         wodbgstream os;
@@ -1343,6 +1347,221 @@ HRESULT Filter::GetMuxMode(WebmMuxMode* pMuxMode)
         *pMuxMode = kWebmMuxModeDefault;
 
     return S_OK;
+}
+
+
+HRESULT Filter::SetEncryptionMode(WebmEncryptionMode mode)
+{
+	Lock lock;
+
+	int imode = mode;
+	if (imode < kWebmEncryptionModeDefault && imode> kWebmEncryptionModeAll)
+		return E_INVALIDARG;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (m_state != State_Stopped)
+		return VFW_E_NOT_STOPPED;
+
+	if (mode == kWebmEncryptionModeVideoOnly)
+	{
+		m_ctx.SetEncryptionAudio(false);
+		m_ctx.SetEncryptionVideo(true);
+	}
+	else if (mode == kWebmEncryptionModeAll)
+	{
+		m_ctx.SetEncryptionAudio(true);
+		m_ctx.SetEncryptionVideo(true);
+	}
+	else
+	{
+		m_ctx.SetEncryptionAudio(false);
+		m_ctx.SetEncryptionVideo(false);
+	}
+
+	return S_OK;
+}
+
+
+HRESULT Filter::GetEncryptionMode(WebmEncryptionMode *pMode)
+{
+	if (pMode == 0)
+		return E_POINTER;
+
+	Lock lock;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (m_ctx.GetEncryptionAudio() && m_ctx.GetEncryptionVideo())
+		*pMode = kWebmEncryptionModeAll;
+	else if (m_ctx.GetEncryptionVideo())
+		*pMode = kWebmEncryptionModeVideoOnly;
+	else
+		*pMode = kWebmEncryptionModeDefault;
+
+	return S_OK;
+}
+
+
+HRESULT Filter::SetEncryptionContentId(const BYTE *buffer, LONG length)
+{
+	Lock lock;
+
+	if (buffer == 0)
+		return E_POINTER;
+	if (length < 1)
+		return S_FALSE;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (m_state != State_Stopped)
+		return VFW_E_NOT_STOPPED;
+
+	std::string cid;
+	std::copy(buffer, buffer + length, std::back_inserter(cid));
+	m_ctx.SetEncryptionContentId(cid);
+
+	return S_OK;
+}
+
+
+HRESULT Filter::GetEncryptionContentId(BYTE **pBuffer, LONG *pLength)
+{
+	Lock lock;
+
+	if (pBuffer == 0 || pLength == 0)
+		return E_POINTER;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	const std::string& cid = m_ctx.GetEncryptionContentId();
+	if (cid.empty())
+	{
+		*pLength = 0;
+		*pBuffer = static_cast<BYTE *>(::CoTaskMemAlloc(0));
+	}
+	else
+	{
+		*pLength = cid.length();
+		*pBuffer = static_cast<BYTE *>(::CoTaskMemAlloc(cid.length()));
+		if (*pBuffer)
+		{
+			memcpy(*pBuffer, cid.data(), cid.length());
+		}
+	}
+
+	if (*pBuffer)
+		return E_OUTOFMEMORY;
+	else
+		return S_OK;
+}
+
+
+HRESULT Filter::SetEncryptionSecret(const BYTE *buffer, LONG length)
+{
+	Lock lock;
+
+	if (buffer == 0)
+		return E_POINTER;
+	if (length < 1)
+		return S_FALSE;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (m_state != State_Stopped)
+		return VFW_E_NOT_STOPPED;
+
+	std::string secret;
+	std::copy(buffer, buffer + length, std::back_inserter(secret));
+	m_ctx.SetEncryptionSecret(secret);
+
+	return S_OK;
+}
+
+
+HRESULT Filter::GetEncryptionSecret(BYTE **pBuffer, LONG *pLength)
+{
+	Lock lock;
+
+	if (pBuffer == 0 || pLength == 0)
+		return E_POINTER;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	const std::string& secret = m_ctx.GetEncryptionContentId();
+	if (secret.empty())
+	{
+		*pLength = 0;
+		*pBuffer = static_cast<BYTE *>(::CoTaskMemAlloc(0));
+	}
+	else
+	{
+		*pLength = secret.length();
+		*pBuffer = static_cast<BYTE *>(::CoTaskMemAlloc(secret.length()));
+		if (*pBuffer)
+		{
+			memcpy(*pBuffer, secret.data(), secret.length());
+		}
+	}
+
+	if (*pBuffer)
+		return E_OUTOFMEMORY;
+	else
+		return S_OK;
+}
+
+
+HRESULT Filter::SetEncryptionIV(LONGLONG iv)
+{
+	Lock lock;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	if (m_state != State_Stopped)
+		return VFW_E_NOT_STOPPED;
+
+	m_ctx.SetEncryptionIV(iv);
+
+	return S_OK;
+}
+
+
+HRESULT Filter::GetEncryptionIV(LONGLONG *pIv)
+{
+	if (pIv == 0)
+		return E_POINTER;
+
+	Lock lock;
+
+	HRESULT hr = lock.Seize(this);
+
+	if (FAILED(hr))
+		return hr;
+
+	*pIv = m_ctx.GetEncryptionIV();
+
+	return S_OK;
 }
 
 

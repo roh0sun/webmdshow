@@ -42,7 +42,10 @@ Context::Context() :
    m_timecode_scale(1000000),  //TODO
    m_info_pos(0),
    m_seekhead_pos(0),
-   m_segment_pos(0)
+   m_segment_pos(0),
+   m_encAudio(false),
+   m_encVideo(false),
+   m_encIV(0)
 {
     //Seed the random number generator, which is needed
     //for creation of unique TrackUIDs.
@@ -1597,6 +1600,56 @@ void Context::BufferData()
 {
     assert(m_bBufferData == false);
     m_bBufferData = true;
+}
+
+void Context::SetEncryptionAudio(bool enable)
+{
+	m_encAudio = enable;
+}
+
+bool Context::GetEncryptionAudio() const
+{
+	return m_encAudio;
+}
+
+void Context::SetEncryptionVideo(bool enable)
+{
+	m_encVideo = enable;
+}
+
+bool Context::GetEncryptionVideo() const
+{
+	return m_encVideo;
+}
+
+void Context::SetEncryptionContentId(const std::string& cid)
+{
+	m_encCid = cid;
+}
+
+const std::string& Context::GetEncryptionContentId() const
+{
+	return m_encCid;
+}
+
+void Context::SetEncryptionSecret(const std::string& secret)
+{
+	m_encSecret = secret;
+}
+
+const std::string& Context::GetEncryptionSecret() const
+{
+	return m_encSecret;
+}
+
+void Context::SetEncryptionIV(LONGLONG iv)
+{
+	m_encIV = iv;
+}
+
+LONGLONG Context::GetEncryptionIV() const
+{
+	return m_encIV;
 }
 
 void Context::FlushBufferedData()
