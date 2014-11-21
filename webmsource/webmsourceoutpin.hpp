@@ -115,6 +115,9 @@ public:
 
     mkvparser::Stream* const m_pStream;
 
+	void SetEnableDecryption();
+	void SetDecryptParam(const std::string& secret);
+
 private:
     static unsigned __stdcall ThreadProc(void*);
     unsigned Main();

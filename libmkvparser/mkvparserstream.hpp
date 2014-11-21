@@ -10,6 +10,12 @@
 #include <string>
 #include <iosfwd>
 #include <vector>
+#include <memory>
+
+namespace webm_crypt_dll
+{
+	class WebmDecryptModule;
+}
 
 class CMediaTypes;
 
@@ -19,6 +25,12 @@ namespace mkvparser
 class Track;
 class BlockEntry;
 class Cluster;
+
+struct WebmDecryptModule_delete : public std::default_delete < webm_crypt_dll::WebmDecryptModule >
+{
+	void operator()(webm_crypt_dll::WebmDecryptModule* ptr);
+};
+typedef std::unique_ptr<webm_crypt_dll::WebmDecryptModule, WebmDecryptModule_delete> WebmDecryptModulePtr;
 
 class Stream
 {
@@ -71,6 +83,9 @@ public:
     const Track* const m_pTrack;
     static std::wstring ConvertFromUTF8(const char*);
 
+	void SetEnableDecryption();
+	void SetDecryptParam(const std::string& secret);
+
 protected:
     explicit Stream(const Track*);
     bool m_bDiscontinuity;
@@ -78,6 +93,12 @@ protected:
     const BlockEntry* m_pStop;
     //const Cluster* m_pBase;
     LONGLONG m_base_time_ns;
+
+	std::string m_encSecret;
+	bool m_enableDecryption;
+	WebmDecryptModulePtr m_decryptModule;
+	std::unique_ptr<uint8_t> m_encryptedData;
+	size_t m_encryptedDataSize;
 
     virtual std::wostream& GetKind(std::wostream&) const = 0;
 
@@ -88,13 +109,12 @@ protected:
 
     virtual void OnPopulateSample(
                 const BlockEntry*,
-                const samples_t&) const = 0;
+                const samples_t&) = 0;
 
 private:
 
     const BlockEntry* m_pLocked;
     void SetCurr(const mkvparser::BlockEntry*);
-
 };
 
 }  //end namespace mkvparser

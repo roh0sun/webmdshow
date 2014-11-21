@@ -21,6 +21,7 @@
 using std::endl;
 #endif
 
+#include "WebmDecryptModule.h"
 
 namespace mkvparser
 {
@@ -483,7 +484,7 @@ long AudioStream::GetBufferCount() const
 
 void AudioStream::OnPopulateSample(
     const BlockEntry* pNextEntry,
-    const samples_t& samples) const
+    const samples_t& samples)
 {
     assert(!samples.empty());
     //assert(m_pBase);
@@ -575,16 +576,38 @@ void AudioStream::OnPopulateSample(
         assert(tgtsize >= 0);
         assert(tgtsize >= srcsize);
 
-        BYTE* ptr;
+		BYTE* ptr = NULL;
+		HRESULT hr = pSample->GetPointer(&ptr);
+		assert(SUCCEEDED(hr));
+		assert(ptr);
+		
+		if (m_enableDecryption)
+		{
+			if (m_encryptedDataSize < (size_t)srcsize)
+			{
+				m_encryptedData.reset(new uint8_t[srcsize]);
+				m_encryptedDataSize = srcsize;
+			}
 
-        HRESULT hr = pSample->GetPointer(&ptr);
-        assert(SUCCEEDED(hr));
-        assert(ptr);
+			const long status = f.Read(pFile, m_encryptedData.get());
+			status;
+			assert(status == 0);  //all bytes were read
+			
+			size_t plainSize = tgtsize;
+			bool decrypt_ok = m_decryptModule->ProcessData(m_encryptedData.get(), srcsize, ptr, &plainSize);
+			decrypt_ok;
+			assert(decrypt_ok);
 
-        const long status = f.Read(pFile, ptr);
-        assert(status == 0);  //all bytes were read
+			hr = pSample->SetActualDataLength(plainSize);
+		}
+		else
+		{
+			const long status = f.Read(pFile, ptr);
+			status;
+			assert(status == 0);  //all bytes were read
 
-        hr = pSample->SetActualDataLength(srcsize);
+			hr = pSample->SetActualDataLength(srcsize);
+		}
 
         hr = pSample->SetPreroll(FALSE);
         assert(SUCCEEDED(hr));

@@ -19,13 +19,17 @@
 using std::endl;
 #endif
 
+#include "WebmDecryptModule.h"
+
 namespace mkvparser
 {
 
 
 Stream::Stream(const Track* pTrack) :
     m_pTrack(pTrack),
-    m_pLocked(0)
+    m_pLocked(0),
+	m_enableDecryption(false),
+	m_encryptedDataSize(0)
 {
     Init();
 }
@@ -609,6 +613,12 @@ HRESULT Stream::PopulateSamples(const samples_t& samples)
     if (samples.size() != samples_t::size_type(nFrames))
         return 2;   //try again
 
+	if (m_enableDecryption && !m_decryptModule)
+	{
+		m_decryptModule.reset(webm_crypt_dll::WebmDecryptModule::Create(m_encSecret));
+		m_enableDecryption = m_decryptModule->Init();
+	}
+
     OnPopulateSample(pNext, samples);
 
     SetCurr(pNext);
@@ -666,5 +676,22 @@ std::wstring Stream::ConvertFromUTF8(const char* str)
     return wstr;
 }
 
+
+void Stream::SetEnableDecryption()
+{
+	m_enableDecryption = true;
+}
+
+
+void Stream::SetDecryptParam(const std::string& secret)
+{
+	m_encSecret = secret;
+}
+
+
+void WebmDecryptModule_delete::operator()(webm_crypt_dll::WebmDecryptModule* ptr)
+{
+	webm_crypt_dll::WebmDecryptModule::Destroy(ptr);
+}
 
 }  //end namespace mkvparser

@@ -37,7 +37,7 @@ protected:
     long GetBufferSize() const;
     long GetBufferCount() const;
 
-    void OnPopulateSample(const BlockEntry*, const samples_t&) const;
+    void OnPopulateSample(const BlockEntry*, const samples_t&);
 
     void GetVorbisMediaTypes(CMediaTypes&) const;
 

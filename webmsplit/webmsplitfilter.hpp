@@ -20,6 +20,7 @@ namespace mkvparser
 class IMkvReader;
 class Cluster;
 class Stream;
+class Track;
 }
 
 namespace WebmSplit
@@ -112,7 +113,6 @@ private:
 	bool m_encVideo;
 	std::string m_encCid;
 	std::string m_encSecret;
-	LONGLONG m_encIV;
 
 public:
     static const LONGLONG kNoSeek;
@@ -133,7 +133,7 @@ public:
     void OnStarvation(ULONG);
 
     HRESULT Open();
-    void CreateOutpin(mkvparser::Stream*);
+	Outpin* const CreateOutpin(mkvparser::Stream*);
 
     bool InCache();
 
@@ -157,6 +157,7 @@ private:
     void SetCurrPositionVideo(LONGLONG ns, mkvparser::Stream*);
     void SetCurrPositionAudio(LONGLONG ns, mkvparser::Stream*);
 
+	void CheckContentEncoding(const mkvparser::Track* pTrack, bool& enable);
 };
 
 }  //end namespace WebmSplit

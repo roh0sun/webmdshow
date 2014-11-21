@@ -124,6 +124,9 @@ public:
     mkvparser::Stream* GetStream() const;
     void OnNewCluster();
 
+	void SetEnableDecryption();
+	void SetDecryptParam(const std::string& secret);
+
 private:
     static unsigned __stdcall ThreadProc(void*);
     unsigned Main();

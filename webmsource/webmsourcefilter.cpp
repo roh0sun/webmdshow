@@ -87,8 +87,7 @@ Filter::Filter(IClassFactory* pClassFactory, IUnknown* pOuter)
       m_seekBase_ns(-1),
       m_currTime(kNoSeek),
 	  m_encAudio(false),
-	  m_encVideo(false),
-	  m_encIV(0)
+	  m_encVideo(false)
 {
     m_pClassFactory->LockServer(TRUE);
 
@@ -787,21 +786,33 @@ HRESULT Filter::CreateSegment()
 
         const long long type = pTrack->GetType();
 
-        if (type == 1)  //video
-        {
-            typedef mkvparser::VideoTrack VT;
-            const VT* const t = static_cast<const VT*>(pTrack);
+		if (type == 1)  //video
+		{
+			typedef mkvparser::VideoTrack VT;
+			const VT* const t = static_cast<const VT*>(pTrack);
 
-            if (VideoStream* s = VideoStream::CreateInstance(t))
-                CreateOutpin(s);
+			if (VideoStream* s = VideoStream::CreateInstance(t))
+			{
+				CheckContentEncoding(pTrack, m_encVideo);
+
+				Outpin* const pin = CreateOutpin(s);
+				if (m_encVideo)
+					pin->SetEnableDecryption();
+			}
         }
         else if (type == 2)  //audio
         {
             typedef mkvparser::AudioTrack AT;
             const AT* const t = static_cast<const AT*>(pTrack);
 
-            if (AudioStream* s = AudioStream::CreateInstance(t))
-                CreateOutpin(s);
+			if (AudioStream* s = AudioStream::CreateInstance(t))
+			{
+				CheckContentEncoding(pTrack, m_encAudio);
+
+				Outpin* const pin = CreateOutpin(s);
+				if (m_encAudio)
+					pin->SetEnableDecryption();
+			}
         }
     }
 #endif
@@ -842,10 +853,45 @@ HRESULT Filter::CreateSegment()
 }
 
 
-void Filter::CreateOutpin(mkvparser::Stream* s)
+void Filter::CheckContentEncoding(const mkvparser::Track* pTrack, bool& enable)
+{
+	using namespace mkvparser;
+
+	ULONG ec = pTrack->GetContentEncodingCount();
+	for (ULONG e = 0; e<ec; ++e)
+	{
+		const ContentEncoding* encoding = pTrack->GetContentEncodingByIndex(e);
+		if (encoding->encoding_type() == 1)
+		{
+			ULONG rc = encoding->GetEncryptionCount();
+			for (ULONG r = 0; r < rc; ++r)
+			{
+				const ContentEncoding::ContentEncryption* encryption = encoding->GetEncryptionByIndex(r);
+				if (encryption->algo == 5)
+				{
+					if (encryption->key_id_len > 0)
+					{
+						m_encCid.clear();
+						std::copy(encryption->key_id, encryption->key_id + encryption->key_id_len,
+							std::back_inserter(m_encCid));
+					}
+
+					if (encryption->aes_settings.cipher_mode == 1)
+					{
+						enable = true;
+					}
+				}
+			}
+		}
+	}
+}
+
+
+Outpin* const Filter::CreateOutpin(mkvparser::Stream* s)
 {
     Outpin* const p = new (std::nothrow) Outpin(this, s);
     m_pins.push_back(p);
+	return p;
 }
 
 
@@ -923,28 +969,9 @@ HRESULT Filter::GetEncryptionMode(WebmEncryptionMode *pMode)
 }
 
 
-HRESULT Filter::SetEncryptionContentId(const BYTE *buffer, LONG length)
+HRESULT Filter::SetEncryptionContentId(const BYTE *, LONG )
 {
-	Lock lock;
-
-	if (buffer == 0)
-		return E_POINTER;
-	if (length < 1)
-		return S_FALSE;
-
-	HRESULT hr = lock.Seize(this);
-
-	if (FAILED(hr))
-		return hr;
-
-	if (m_state != State_Stopped)
-		return VFW_E_NOT_STOPPED;
-
-	std::string cid;
-	std::copy(buffer, buffer + length, std::back_inserter(cid));
-	m_encCid = cid;
-
-	return S_OK;
+	return E_NOTIMPL;
 }
 
 
@@ -997,9 +1024,6 @@ HRESULT Filter::SetEncryptionSecret(const BYTE *buffer, LONG length)
 	if (FAILED(hr))
 		return hr;
 
-	if (m_state != State_Stopped)
-		return VFW_E_NOT_STOPPED;
-
 	std::string secret;
 	std::copy(buffer, buffer + length, std::back_inserter(secret));
 	m_encSecret = secret;
@@ -1043,39 +1067,15 @@ HRESULT Filter::GetEncryptionSecret(BYTE **pBuffer, LONG *pLength)
 }
 
 
-HRESULT Filter::SetEncryptionIV(LONGLONG iv)
+HRESULT Filter::SetEncryptionIV(LONGLONG )
 {
-	Lock lock;
-
-	HRESULT hr = lock.Seize(this);
-
-	if (FAILED(hr))
-		return hr;
-
-	if (m_state != State_Stopped)
-		return VFW_E_NOT_STOPPED;
-
-	m_encIV = iv;
-
-	return S_OK;
+	return E_NOTIMPL;
 }
 
 
-HRESULT Filter::GetEncryptionIV(LONGLONG *pIv)
+HRESULT Filter::GetEncryptionIV(LONGLONG *)
 {
-	if (pIv == 0)
-		return E_POINTER;
-
-	Lock lock;
-
-	HRESULT hr = lock.Seize(this);
-
-	if (FAILED(hr))
-		return hr;
-
-	*pIv = m_encIV;
-
-	return S_OK;
+	return E_NOTIMPL;
 }
 
 
@@ -1090,6 +1090,8 @@ void Filter::OnStart()
     {
         Outpin* const pPin = *i++;
         assert(pPin);
+
+		pPin->SetDecryptParam(m_encSecret);
 
         pPin->Init();
     }

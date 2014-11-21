@@ -33,7 +33,7 @@ protected:
     long GetBufferSize() const;
     long GetBufferCount() const;
 
-    void OnPopulateSample(const BlockEntry*, const samples_t&) const;
+    void OnPopulateSample(const BlockEntry*, const samples_t&);
 
     void GetVpxMediaTypes(const GUID& subtype, CMediaTypes&) const;
     void GetVfwMediaTypes(CMediaTypes&) const;

@@ -233,6 +233,7 @@ int MkvReader::Read(
 
             const cache_t::value_type page_iter = *curr_iter;
             const Page& curr_page = *page_iter;
+			curr_page;
 
             next = ++iter_t(curr_iter);
             assert((next == m_cache.end()) ||
@@ -244,6 +245,7 @@ int MkvReader::Read(
         {
             const cache_t::value_type page_iter = *next++;
             const Page& page = *page_iter;
+			page;
             assert(page.GetPos() <= pos);
             assert(pos < (page.GetPos() + page_size));
 
@@ -285,6 +287,7 @@ void MkvReader::Read(
         BYTE* ptr;
 
         const HRESULT hr = page.pSample->GetPointer(&ptr);
+		hr;
         assert(SUCCEEDED(hr));
         assert(ptr);
 
@@ -506,6 +509,7 @@ LONGLONG MkvReader::Page::GetPos() const
     LONGLONG st, sp;
 
     const HRESULT hr = pSample->GetTime(&st, &sp);
+	hr;
     assert(SUCCEEDED(hr));
     assert(st >= 0);
     assert((st % 10000000) == 0);

@@ -22,6 +22,8 @@
 using std::endl;
 #endif
 
+#include "WebmDecryptModule.h"
+
 static const char* const s_CodecId_VP8 = "V_VP8";
 static const char* const s_CodecId_VP9 = "V_VP9";
 static const char* const s_CodecId_ON2VP8 = "V_ON2VP8";
@@ -339,7 +341,7 @@ long VideoStream::GetBufferCount() const
 
 void VideoStream::OnPopulateSample(
     const BlockEntry* pNextEntry,
-    const samples_t& samples) const
+    const samples_t& samples)
 {
     assert(!samples.empty());
     //assert(m_pBase);
@@ -433,16 +435,38 @@ void VideoStream::OnPopulateSample(
         assert(tgtsize >= 0);
         assert(tgtsize >= srcsize);
 
-        BYTE* ptr;
+		BYTE* ptr = NULL;
+		HRESULT hr = pSample->GetPointer(&ptr);
+		assert(SUCCEEDED(hr));
+		assert(ptr);
 
-        HRESULT hr = pSample->GetPointer(&ptr);  //read srcsize bytes
-        assert(SUCCEEDED(hr));
-        assert(ptr);
+		if (m_enableDecryption)
+		{
+			if (m_encryptedDataSize < (size_t)srcsize)
+			{
+				m_encryptedData.reset(new uint8_t[srcsize]);
+				m_encryptedDataSize = srcsize;
+			}
 
-        const long status = f.Read(pFile, ptr);
-        assert(status == 0);  //all bytes were read
+			const long status = f.Read(pFile, m_encryptedData.get());
+			status;
+			assert(status == 0);  //all bytes were read
 
-        hr = pSample->SetActualDataLength(srcsize);
+			size_t plainSize = tgtsize;
+			bool decrypt_ok = m_decryptModule->ProcessData(m_encryptedData.get(), srcsize, ptr, &plainSize);
+			decrypt_ok;
+			assert(decrypt_ok);
+
+			hr = pSample->SetActualDataLength(plainSize);
+		}
+		else
+		{
+			const long status = f.Read(pFile, ptr);
+			status;
+			assert(status == 0);  //all bytes were read
+
+			hr = pSample->SetActualDataLength(srcsize);
+		}
 
         hr = pSample->SetPreroll(bInvisible ? TRUE : FALSE);
         assert(SUCCEEDED(hr));

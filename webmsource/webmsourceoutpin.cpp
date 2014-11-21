@@ -1256,5 +1256,16 @@ HRESULT Outpin::PopulateSamples(mkvparser::Stream::samples_t& samples)
 }
 
 
+void Outpin::SetEnableDecryption()
+{
+	m_pStream->SetEnableDecryption();
+}
+
+
+void Outpin::SetDecryptParam(const std::string& secret)
+{
+	m_pStream->SetDecryptParam(secret);
+}
+
 } //end namespace WebmSource
 

@@ -20,6 +20,7 @@ namespace mkvparser
 class Segment;
 class Cluster;
 class Stream;
+class Track;
 }
 
 namespace WebmSource
@@ -90,7 +91,7 @@ public:
 
     //local classes and methods
 
-    void CreateOutpin(mkvparser::Stream*);
+	Outpin* const CreateOutpin(mkvparser::Stream*);
 
 private:
 
@@ -127,7 +128,6 @@ private:
 	bool m_encVideo;
 	std::string m_encCid;
 	std::string m_encSecret;
-	LONGLONG m_encIV;
 
 public:
     static const LONGLONG kNoSeek;
@@ -155,6 +155,7 @@ private:
     HRESULT CreateSegment();
     void PopulateSamples(const HANDLE*, DWORD);
 
+	void CheckContentEncoding(const mkvparser::Track* pTrack, bool& enable);
 };
 
 }  //end namespace WebmSource
