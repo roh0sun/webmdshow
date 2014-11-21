@@ -109,6 +109,15 @@ void StreamAudio::WriteTrackSettings()
 }
 
 
+void StreamAudio::WriteContentEncodings()
+{
+	if (m_context.GetEncryptionAudio())
+	{
+		WriteContentEncodingEncryption(m_context.GetEncryptionContentId());
+	}
+}
+
+
 #if 0
 void StreamAudio::AudioFrame::Write(
     const Stream& s,

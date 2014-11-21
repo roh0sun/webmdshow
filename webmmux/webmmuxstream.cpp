@@ -13,6 +13,7 @@
 #include <cassert>
 #include <climits>
 
+#include "WebmEncryptModule.h"
 
 namespace WebmMuxLib
 {
@@ -36,7 +37,8 @@ void Stream::Frame::Release()
 
 Stream::Stream(Context& c) :
     m_context(c),
-    m_trackNumber(0)
+    m_trackNumber(0),
+	m_encryptedDataSize(0)
 {
 }
 
@@ -89,10 +91,12 @@ void Stream::WriteTrackEntry(int tn)
     WriteTrackUID();
     WriteTrackType();
     WriteTrackName();
-    WriteTrackCodecID();
+	WriteTrackCodecID();
     WriteTrackCodecPrivate();
     WriteTrackCodecName();
     WriteTrackSettings();
+
+	WriteContentEncodings();
 
     const uint64 entry_len = entry_buf.GetBufferLength() - num_bytes_to_ignore;
     entry_buf.RewriteUInt(entry_len_offset, entry_len, sizeof(uint16));
@@ -139,6 +143,67 @@ void Stream::WriteTrackCodecPrivate()
 
 void Stream::WriteTrackSettings()
 {
+}
+
+
+void Stream::WriteContentEncodings()
+{
+}
+
+
+void Stream::WriteContentEncodingEncryption(const std::string& keyid)
+{
+	static const uint8_t order = 0;
+	static const uint8_t scope = 1;
+	static const uint8_t type = 1;
+	static const uint8_t enc_algo = 5;
+	static const uint8_t aes_size = 4;
+	static const uint8_t cipher_mode = 1;
+
+	uint8_t keyid_size = (uint8_t)keyid.length();
+	static const uint16_t encryption_size = 7 + aes_size + (keyid_size > 0 ? (keyid_size + 4) : 0);
+	static const uint16_t encoding_size = 16 + encryption_size;
+	static const uint16_t encodings_size = 4 + encoding_size;
+
+	WebmUtil::EbmlScratchBuf& buf = m_context.m_buf;
+
+	buf.WriteID2(WebmUtil::kEbmlContentEncodingsID);
+	buf.Write2UInt(encodings_size);
+	{
+		buf.WriteID2(WebmUtil::kEbmlContentEncodingID);
+		buf.Write2UInt(encoding_size);
+		{
+			buf.WriteID2(WebmUtil::kEbmlContentEncodingOrderID);
+			buf.Write1UInt(1);
+			buf.Serialize1UInt(order);
+			buf.WriteID2(WebmUtil::kEbmlContentEncodingScopeID);
+			buf.Write1UInt(1);
+			buf.Serialize1UInt(scope);
+			buf.WriteID2(WebmUtil::kEbmlContentEncodingTypeID);
+			buf.Write1UInt(1);
+			buf.Serialize1UInt(type);
+			buf.WriteID2(WebmUtil::kEbmlContentEncryptionID);
+			buf.Write2UInt(encryption_size);
+			{
+				buf.WriteID2(WebmUtil::kEbmlContentEncAlgoID);
+				buf.Write1UInt(1);
+				buf.Serialize1UInt(enc_algo);
+				if (keyid_size > 0)
+				{
+					buf.WriteID2(WebmUtil::kEbmlContentEncKeyIDID);
+					buf.Write2UInt(keyid_size);
+					buf.Write((const uint8*)keyid.data(), keyid_size);
+				}
+				buf.WriteID2(WebmUtil::kEbmlContentEncAESSettingsID);
+				buf.Write1UInt(aes_size);
+				{
+					buf.WriteID2(WebmUtil::kEbmlAESSettingsCipherModeID);
+					buf.Write1UInt(1);
+					buf.Serialize1UInt(cipher_mode);
+				}
+			}
+		}
+	}
 }
 
 
@@ -202,7 +267,19 @@ void Stream::Frame::WriteSimpleBlock(
     const Stream& s,
     ULONG cluster_tc) const
 {
-    WriteBlock(s, cluster_tc, true, GetBlockSize());  //SimpleBlock
+	const BYTE* data_ptr = GetData();
+	ULONG data_size = GetSize();
+	WriteBlock(s, cluster_tc, true, GetBlockSize(), data_ptr, data_size);  //SimpleBlock
+}
+
+void Stream::Frame::WriteSimpleRawBlock(
+	const Stream& s,
+	ULONG cluster_tc,
+	const uint8_t* data_ptr,
+	ULONG data_size) const
+{
+	ULONG block_size = 1 + 2 + 1 + data_size;  //tn, tc, flg, f
+	WriteBlock(s, cluster_tc, true, block_size, data_ptr, data_size);  //SimpleBlock
 }
 
 void Stream::Frame::WriteBlockGroup(
@@ -233,7 +310,9 @@ void Stream::Frame::WriteBlockGroup(
     const __int64 pos = file.GetPosition();
 #endif
 
-    WriteBlock(s, cluster_tc, false, block_size);
+	const BYTE* data_ptr = GetData();
+	ULONG data_size = GetSize();
+	WriteBlock(s, cluster_tc, false, block_size, data_ptr, data_size);
 
     if (!bKey)
     {
@@ -273,7 +352,9 @@ void Stream::Frame::WriteBlock(
     const Stream& s,
     ULONG cluster_timecode,
     bool simple_block,
-    ULONG block_size) const
+	ULONG block_size,
+	const BYTE* data_ptr,
+	ULONG data_size) const
 {
     EbmlIO::File& file = s.m_context.m_file;
 
@@ -323,7 +404,7 @@ void Stream::Frame::WriteBlock(
 
     file.Write(&flags, 1);   //written as binary, not uint
 
-    file.Write(GetData(), GetSize());  //frame
+    file.Write(data_ptr, data_size);  //frame
 
     //end block
 
@@ -333,5 +414,40 @@ void Stream::Frame::WriteBlock(
 #endif
 }
 
+bool Stream::EncryptFrame(const Stream::Frame* frame, const uint8_t*& encryptedData, size_t& encryptedDataSize)
+{
+	bool ok = false;
+	if (!m_encryptModule)
+	{
+		uint64_t initial_iv = m_context.GetEncryptionIV();
+		std::string secret = m_context.GetEncryptionSecret();
+		m_encryptModule.reset(webm_crypt_dll::WebmEncryptModule::Create(secret, initial_iv));
+		if (!m_encryptModule->Init())
+			return false;
+	}
+
+	const BYTE* data_ptr = frame->GetData();
+	ULONG data_size = frame->GetSize();
+	size_t ciphertext_size = data_size + webm_crypt_dll::kSignalByteSize + webm_crypt_dll::kIVSize;
+	if (m_encryptedDataSize < ciphertext_size)
+	{
+		m_encryptedData.reset(new uint8_t[ciphertext_size]);
+		m_encryptedDataSize = ciphertext_size;
+	}
+
+	ok = m_encryptModule->ProcessData(data_ptr, data_size, m_encryptedData.get(), &ciphertext_size);
+	if (ok)
+	{
+		encryptedData = m_encryptedData.get();
+		encryptedDataSize = ciphertext_size;
+	}
+
+	return ok;
+}
+
+void WebmEncryptModule_delete::operator()(webm_crypt_dll::WebmEncryptModule* ptr)
+{
+	webm_crypt_dll::WebmEncryptModule::Destroy(ptr);
+}
 
 }  //end namespace WebmMuxLib

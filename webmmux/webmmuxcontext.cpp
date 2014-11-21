@@ -1457,7 +1457,25 @@ void Context::WriteVideoFrame(
     const ULONG ft = pf->GetTimecode();
 
 #if 1
-    pf->WriteSimpleBlock(s, c.m_timecode);
+	if (m_encVideo)
+	{
+		const uint8_t* encryptedData = NULL;
+		size_t encryptedDataSize = 0;
+		bool encrypt_ok = s.EncryptFrame(pf, encryptedData, encryptedDataSize);
+		assert(encrypt_ok);
+		if (encrypt_ok)
+		{
+			pf->WriteSimpleRawBlock(s, c.m_timecode, encryptedData, encryptedDataSize);
+		}
+		else
+		{
+			pf->WriteSimpleBlock(s, c.m_timecode);
+		}
+	}
+	else
+	{
+		pf->WriteSimpleBlock(s, c.m_timecode);
+	}
 #else
     if (next != stop)
         pf->WriteSimpleBlock(s, c.m_timecode);
@@ -1527,7 +1545,25 @@ void Context::WriteAudioFrame(Cluster& c, ULONG& cFrames)
    assert(cFrames < ULONG_MAX);
    ++cFrames;
 
-   pf->WriteSimpleBlock(s, c.m_timecode);
+   if (m_encAudio)
+   {
+	   const uint8_t* encryptedData = NULL;
+	   size_t encryptedDataSize = 0;
+	   bool encrypt_ok = s.EncryptFrame(pf, encryptedData, encryptedDataSize);
+	   assert(encrypt_ok);
+	   if (encrypt_ok)
+	   {
+		   pf->WriteSimpleRawBlock(s, c.m_timecode, encryptedData, encryptedDataSize);
+	   }
+	   else
+	   {
+		   pf->WriteSimpleBlock(s, c.m_timecode);
+	   }
+   }
+   else
+   {
+	   pf->WriteSimpleBlock(s, c.m_timecode);
+   }
 
    const ULONG ft = pf->GetTimecode();
 

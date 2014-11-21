@@ -26,6 +26,7 @@ protected:
 
     void WriteTrackType();
     void WriteTrackSettings();
+	void WriteContentEncodings();
 
     const void* GetFormat(ULONG&) const;
 

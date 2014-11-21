@@ -56,6 +56,16 @@ namespace WebmUtil
         kEbmlVideoFrameRate = 0x2383E3,
         kEbmlVoidID = 0xEC,
         kEbmlWritingAppID = 0x5741,
+		kEbmlContentEncodingsID = 0x6D80,
+		kEbmlContentEncodingID = 0x6240,
+		kEbmlContentEncodingOrderID = 0x5031,
+		kEbmlContentEncodingScopeID = 0x5032,
+		kEbmlContentEncodingTypeID = 0x5033,
+		kEbmlContentEncryptionID = 0x5035,
+		kEbmlContentEncAlgoID = 0x47E1,
+		kEbmlContentEncKeyIDID = 0x47E2,
+		kEbmlContentEncAESSettingsID = 0x47E7, // WebM Encryption RFC
+		kEbmlAESSettingsCipherModeID = 0x47E8, // WebM Encryption RFC
     };
 
     enum EbmlLimits

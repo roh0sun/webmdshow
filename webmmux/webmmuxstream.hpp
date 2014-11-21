@@ -8,8 +8,22 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+
+namespace webm_crypt_dll
+{
+	class WebmEncryptModule;
+}
+
 namespace WebmMuxLib
 {
+
+struct WebmEncryptModule_delete : public std::default_delete < webm_crypt_dll::WebmEncryptModule >
+{
+	void operator()(webm_crypt_dll::WebmEncryptModule* ptr);
+};
+typedef std::unique_ptr<webm_crypt_dll::WebmEncryptModule, WebmEncryptModule_delete> WebmEncryptModulePtr;
 
 class Context;
 
@@ -46,7 +60,9 @@ public:
             const Stream&,
             ULONG cluster_timecode,
             bool simple_block,
-            ULONG block_size) const;
+			ULONG block_size,
+			const BYTE* data_ptr,
+			ULONG data_size) const;
 
         ULONG GetBlockSize() const;
 
@@ -56,6 +72,12 @@ public:
         void WriteSimpleBlock(
                     const Stream&,
                     ULONG cluster_timecode) const;
+
+		void WriteSimpleRawBlock(
+					const Stream&,
+					ULONG cluster_timecode,
+					const uint8_t* data_ptr,
+					ULONG data_size) const;
 
         void WriteBlockGroup(
                     const Stream&,
@@ -70,10 +92,11 @@ public:
         virtual ULONG GetSize() const = 0;
 
         virtual void Release();
-
-    };
+	};
 
     Context& m_context;
+
+	bool EncryptFrame(const Frame* frame, const uint8_t*& encryptedData, size_t& encryptedDataSize);
 
 protected:
 
@@ -92,7 +115,12 @@ protected:
     virtual void WriteTrackCodecPrivate();
     virtual void WriteTrackCodecName() = 0;
     virtual void WriteTrackSettings();
+	virtual void WriteContentEncodings();
+	virtual void WriteContentEncodingEncryption(const std::string& keyid);
 
+	WebmEncryptModulePtr m_encryptModule;
+	std::unique_ptr<uint8_t> m_encryptedData;
+	size_t m_encryptedDataSize;
 };
 
 

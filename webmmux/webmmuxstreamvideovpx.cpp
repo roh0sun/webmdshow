@@ -212,6 +212,15 @@ void StreamVideoVPx::WriteTrackSettings()
 }
 
 
+void StreamVideoVPx::WriteContentEncodings()
+{
+	if (m_context.GetEncryptionVideo())
+	{
+		WriteContentEncodingEncryption(m_context.GetEncryptionContentId());
+	}
+}
+
+
 HRESULT StreamVideoVPx::Receive(IMediaSample* pSample)
 {
     assert(pSample);

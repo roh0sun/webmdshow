@@ -30,6 +30,7 @@ protected:
     void WriteTrackCodecID();
     void WriteTrackCodecName();
     void WriteTrackSettings();
+	void WriteContentEncodings();
 
 private:
 

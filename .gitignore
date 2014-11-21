@@ -5,3 +5,5 @@
 *~
 *.TMP
 tags
+*.opensdf
+*.sdf
