@@ -228,7 +228,8 @@ HRESULT Inpin::ReceiveConnection(
                     &m_info,
                     wfx.nChannels,
                     wfx.nSamplesPerSec,
-                    1.0);  //?
+					0.4); // roh0sun, roughly 128kbps
+                    //1.0);  //?
 
     if (result != 0)  //error
         return E_FAIL;
